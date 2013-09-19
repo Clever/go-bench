@@ -53,8 +53,21 @@ func createDialFunc(startTime time.Time, endTimeResult *int64) func(network, add
 	}
 }
 
-func timeRequest(verb, url string) {
-	req, _ := http.NewRequest(verb, url, nil)
+type RequestResult struct {
+	Error           error
+	ResponseCode    int
+	ContentSize     int64
+	ConnectTime     int64
+	HeaderSendTime  int64
+	ContentSendTime int64
+}
+
+func timeRequest(rootURL string, event RequestEvent) RequestResult {
+	url := fmt.Sprintf("%s%s", rootURL, event.Path)
+	req, _ := http.NewRequest(event.Verb, url, nil)
+	if event.User != "" {
+		req.Header.Set("Authorization", fmt.Sprintf("Basic %s", base64.StdEncoding.EncodeToString([]byte(event.User+":"))))
+	}
 
 	var connectEndTime, headersEndTime, contentEndTime int64
 	startTime := time.Now()
@@ -68,36 +81,40 @@ func timeRequest(verb, url string) {
 	r, err := client.Do(req)
 	headersEndTime = time.Now().Sub(startTime).Nanoseconds()
 
+	var contentSize int64 = 0
 	defer r.Body.Close()
-	if err != nil {
-		fmt.Println("Error: ", err)
-	} else {
-		fmt.Println("Status code: ", r.StatusCode)
+	if err == nil {
 		buf := new(bytes.Buffer)
-		_, _ = io.Copy(buf, r.Body)
+		contentSize, _ = io.Copy(buf, r.Body)
 		contentEndTime = time.Now().Sub(startTime).Nanoseconds()
 	}
 
-	fmt.Println("Connect time:", (connectEndTime)/1000000, "ms")
-	fmt.Println("Header receive time:", (headersEndTime-connectEndTime)/1000000, "ms")
-	fmt.Println("Content receive time:", (contentEndTime-headersEndTime)/1000000, "ms")
+	return RequestResult{err, r.StatusCode, contentSize, (connectEndTime) / 1000000,
+		(headersEndTime - connectEndTime) / 1000000, (contentEndTime - headersEndTime) / 1000000}
 }
 
-func replayRequestEvent(rootURL string, event RequestEvent) {
-	url := fmt.Sprintf("%s%s", rootURL, event.Path)
-	fmt.Println(event.Verb, url)
-	req, _ := http.NewRequest(event.Verb, url, nil)
-	if event.User != "" {
-		req.Header.Set("Authorization", fmt.Sprintf("Basic %s", base64.StdEncoding.EncodeToString([]byte(event.User+":"))))
+func colorPrint(color int, str string) {
+	if color > 7 {
+		fmt.Print("\x1b[1m")
+		color -= 7
 	}
+	fmt.Printf("\x1b[3%dm%s\x1b[0m", color, str)
+}
 
-	client := &http.Client{}
-	r, err := client.Do(req)
-	if err != nil {
-		fmt.Println("Error: ", err)
+func addToStats(event RequestEvent, result RequestResult) {
+	// To be implemented
+	requestLine := fmt.Sprintln(event.Verb, event.Path)
+	if result.Error != nil {
+		colorPrint(8, fmt.Sprintln("%sGot error:", requestLine, result.Error))
 	} else {
-		fmt.Println("Status code: ", r.StatusCode)
-		r.Body.Close()
+		resultLine := fmt.Sprintf("%sGot %d (%d bytes) in %d ms, %d ms, %d ms\n", requestLine, result.ResponseCode, result.ContentSize, result.ConnectTime, result.HeaderSendTime, result.ContentSendTime)
+		if result.ResponseCode < 300 {
+			colorPrint(9, resultLine)
+		} else if result.ResponseCode < 400 {
+			colorPrint(11, resultLine)
+		} else {
+			colorPrint(8, resultLine)
+		}
 	}
 }
 
@@ -125,7 +142,7 @@ func parseAndReplay(r io.Reader, rootURL string, speed float64) {
 		mutex.Lock()
 		count++
 		mutex.Unlock()
-		go func() { replayRequestEvent(rootURL, rec); mutex.Lock(); count--; mutex.Unlock() }()
+		go func() { addToStats(rec, timeRequest(rootURL, rec)); mutex.Lock(); count--; mutex.Unlock() }()
 	}
 
 	for count > 0 {
