@@ -18,10 +18,11 @@ import (
 )
 
 type RequestEvent struct {
-	Verb string
-	Path string
-	User string
-	Time int
+	Verb  string
+	Path  string
+	User  string
+	Time  int
+	Extra string
 }
 
 type RequestEventReader struct {
@@ -44,7 +45,7 @@ func (r *RequestEventReader) Read() (event RequestEvent, err error) {
 	if err != nil {
 		return RequestEvent{}, err
 	}
-	return RequestEvent{line[1], line[2], line[3], time}, nil
+	return RequestEvent{line[1], line[2], line[3], time, line[4]}, nil
 }
 
 func createDialFunc(startTime time.Time, endTimeResult *int64) func(network, addr string) (net.Conn, error) {
@@ -116,8 +117,9 @@ func addToStats(event RequestEvent, result RequestResult) {
 			Path string
 			RequestResult
 			RequestTime int64
+			Extra       string
 		}
-		data, err := json.Marshal(ResultData{event.Verb, event.Path, result, result.HeaderSendTime + result.ContentSendTime})
+		data, err := json.Marshal(ResultData{event.Verb, event.Path, result, result.HeaderSendTime + result.ContentSendTime, event.Extra})
 		if err != nil {
 			panic(err)
 		}
@@ -132,7 +134,7 @@ func addToStats(event RequestEvent, result RequestResult) {
 		responseCodes[0]++
 	}
 
-	requestLine := fmt.Sprintln(event.Verb, event.Path)
+	requestLine := fmt.Sprintf("%s %s [%s]\n", event.Verb, event.Path, event.Extra)
 	if result.Error != nil {
 		colorPrint(8, fmt.Sprintln("%sGot error:", requestLine, result.Error))
 	} else {
