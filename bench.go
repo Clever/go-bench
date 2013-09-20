@@ -1,9 +1,11 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/base64"
 	"encoding/csv"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
@@ -101,13 +103,42 @@ func colorPrint(color int, str string) {
 	fmt.Printf("\x1b[3%dm%s\x1b[0m", color, str)
 }
 
+var responseCodes [6]int
+var statsMutex sync.Mutex
+
 func addToStats(event RequestEvent, result RequestResult) {
 	// To be implemented
+
+	statsMutex.Lock()
+	if outputWriter != nil {
+		type ResultData struct {
+			Verb string
+			Path string
+			RequestResult
+			RequestTime int64
+		}
+		data, err := json.Marshal(ResultData{event.Verb, event.Path, result, result.HeaderSendTime + result.ContentSendTime})
+		if err != nil {
+			panic(err)
+		}
+		outputWriter.Write(data)
+		outputWriter.WriteRune('\n')
+		outputWriter.Flush()
+	}
+
+	if result.ResponseCode/100 < 6 {
+		responseCodes[result.ResponseCode/100]++
+	} else {
+		responseCodes[0]++
+	}
+
 	requestLine := fmt.Sprintln(event.Verb, event.Path)
 	if result.Error != nil {
 		colorPrint(8, fmt.Sprintln("%sGot error:", requestLine, result.Error))
 	} else {
-		resultLine := fmt.Sprintf("%sGot %d (%d bytes) in %d ms, %d ms, %d ms\n", requestLine, result.ResponseCode, result.ContentSize, result.ConnectTime, result.HeaderSendTime, result.ContentSendTime)
+		resultLine := fmt.Sprintf("%sGot %d (%d bytes) in %d ms, %d ms, %d ms (%d ms)\n",
+			requestLine, result.ResponseCode, result.ContentSize, result.ConnectTime,
+			result.HeaderSendTime, result.ContentSendTime, result.HeaderSendTime+result.ContentSendTime)
 		if result.ResponseCode < 300 {
 			colorPrint(9, resultLine)
 		} else if result.ResponseCode < 400 {
@@ -116,6 +147,8 @@ func addToStats(event RequestEvent, result RequestResult) {
 			colorPrint(8, resultLine)
 		}
 	}
+
+	statsMutex.Unlock()
 }
 
 func parseAndReplay(r io.Reader, rootURL string, speed float64) {
@@ -150,9 +183,22 @@ func parseAndReplay(r io.Reader, rootURL string, speed float64) {
 	}
 }
 
+var outputWriter *bufio.Writer
+var outputFile *os.File
+
 func main() {
 	speed := flag.Float64("speed", 1, "Sets multiplier for playback speed.")
+	output := flag.String("output", "", "Output file for results, in json format.")
 	flag.Parse()
+
+	if *output != "" {
+		var err error
+		outputFile, err = os.Create(*output)
+		if err != nil {
+			panic(err)
+		}
+		outputWriter = bufio.NewWriter(outputFile)
+	}
 
 	if flag.Arg(0) == "" {
 		fmt.Println("Must specify a base URL.")
@@ -161,4 +207,16 @@ func main() {
 	fmt.Println("Starting playback...")
 
 	parseAndReplay(os.Stdin, flag.Arg(0), *speed)
+	fmt.Println("Done!\n")
+	outputWriter.Flush()
+	outputFile.Close()
+
+	for i := 1; i < 6; i++ {
+		if responseCodes[i] != 0 {
+			fmt.Printf("%dxx count: %d\n", i, responseCodes[i])
+		}
+	}
+	if responseCodes[0] != 0 {
+		fmt.Printf("??? count: %d\n", responseCodes[0])
+	}
 }
