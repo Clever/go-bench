@@ -9,6 +9,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"log"
 	"net"
 	"net/http"
 	"os"
@@ -83,7 +84,9 @@ func timeRequest(rootURL string, event RequestEvent) RequestResult {
 
 	r, err := client.Do(req)
 	headersEndTime = time.Now().Sub(startTime).Nanoseconds()
-
+	if err != nil {
+		log.Fatalf("request err %#v: %s", req, err)
+	}
 	var contentSize int64 = 0
 	defer r.Body.Close()
 	if err == nil {
@@ -91,9 +94,9 @@ func timeRequest(rootURL string, event RequestEvent) RequestResult {
 		contentSize, _ = io.Copy(buf, r.Body)
 		contentEndTime = time.Now().Sub(startTime).Nanoseconds()
 	}
-
 	return RequestResult{err, r.StatusCode, contentSize, (connectEndTime) / 1000000,
 		(headersEndTime - connectEndTime) / 1000000, (contentEndTime - headersEndTime) / 1000000}
+
 }
 
 func colorPrint(color int, str string) {
@@ -191,6 +194,7 @@ var outputFile *os.File
 func main() {
 	speed := flag.Float64("speed", 1, "Sets multiplier for playback speed.")
 	output := flag.String("output", "", "Output file for results, in json format.")
+	rooturl := flag.String("root", "", "URL root for requests")
 	flag.Parse()
 
 	if *output != "" {
@@ -202,13 +206,9 @@ func main() {
 		outputWriter = bufio.NewWriter(outputFile)
 	}
 
-	if flag.Arg(0) == "" {
-		fmt.Println("Must specify a base URL.")
-		os.Exit(1)
-	}
 	fmt.Println("Starting playback...")
 
-	parseAndReplay(os.Stdin, flag.Arg(0), *speed)
+	parseAndReplay(os.Stdin, *rooturl, *speed)
 	fmt.Println("Done!\n")
 	outputWriter.Flush()
 	outputFile.Close()
