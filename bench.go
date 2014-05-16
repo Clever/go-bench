@@ -197,6 +197,10 @@ func main() {
 	rooturl := flag.String("root", "", "URL root for requests")
 	flag.Parse()
 
+	if *rooturl == "" {
+		panic("rooturl parameter is required")
+	}
+
 	if *output != "" {
 		var err error
 		outputFile, err = os.Create(*output)
