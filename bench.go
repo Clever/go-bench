@@ -3,7 +3,6 @@ package main
 import (
 	"bufio"
 	"bytes"
-	"encoding/base64"
 	"encoding/csv"
 	"encoding/json"
 	"flag"
@@ -21,7 +20,7 @@ import (
 type RequestEvent struct {
 	Verb  string
 	Path  string
-	User  string
+	Auth  string
 	Time  int
 	Extra string
 }
@@ -66,13 +65,19 @@ type RequestResult struct {
 	ContentSendTime int64
 }
 
-func timeRequest(rootURL string, event RequestEvent) RequestResult {
+func eventToRequest(rootURL string, event RequestEvent) *http.Request {
 	url := fmt.Sprintf("%s%s", rootURL, event.Path)
-	req, _ := http.NewRequest(event.Verb, url, nil)
-	if event.User != "" {
-		req.Header.Set("Authorization", fmt.Sprintf("Basic %s", base64.StdEncoding.EncodeToString([]byte(event.User+":"))))
+	req, err := http.NewRequest(event.Verb, url, nil)
+	if err != nil {
+		panic(err)
 	}
+	if event.Auth != "" {
+		req.Header.Set("Authorization", event.Auth)
+	}
+	return req
+}
 
+func timeRequest(request *http.Request) RequestResult {
 	var connectEndTime, headersEndTime, contentEndTime int64
 	startTime := time.Now()
 
@@ -82,10 +87,10 @@ func timeRequest(rootURL string, event RequestEvent) RequestResult {
 		},
 	}
 
-	r, err := client.Do(req)
+	r, err := client.Do(request)
 	headersEndTime = time.Now().Sub(startTime).Nanoseconds()
 	if err != nil {
-		log.Fatalf("request err %#v: %s", req, err)
+		log.Fatalf("request err %#v: %s", request, err)
 	}
 	var contentSize int64 = 0
 	defer r.Body.Close()
@@ -180,7 +185,7 @@ func parseAndReplay(r io.Reader, rootURL string, speed float64) {
 		mutex.Lock()
 		count++
 		mutex.Unlock()
-		go func() { addToStats(rec, timeRequest(rootURL, rec)); mutex.Lock(); count--; mutex.Unlock() }()
+		go func() { addToStats(rec, timeRequest(eventToRequest(rootURL, rec))); mutex.Lock(); count--; mutex.Unlock() }()
 	}
 
 	for count > 0 {
