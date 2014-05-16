@@ -8,12 +8,13 @@ import (
 func main() {
 	server, err := slowhttp.StartServer()
 	if (err != nil) {
-		fmt.Println(err)
+		panic(err)
 	}
+	defer server.Close()
 	
 	// continue running until user input given
 	var input string
-    _, err2 := fmt.Scanf("%s", &input)
+	_, err2 := fmt.Scanf("%s", &input)
 	if (err != nil) {
 		fmt.Println(err2)
 	}
