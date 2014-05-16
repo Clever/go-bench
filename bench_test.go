@@ -26,11 +26,6 @@ func TestPlayback_1(t *testing.T) {
 	l.Close()
 }
 
-const rootURL = "http://127.0.0.1:8653"
-const verb = "GET"
-const path = "/test/path"
-const delay = 0
-const extra = ""
 func TestEventToRequestWithEmptyAuthHeader(t *testing.T) {
 	assertRequestMatchesExpected(t, "", nil)
 }
@@ -44,6 +39,12 @@ func TestEventToRequestWithBearerAuthHeader(t *testing.T) {
 }
 
 func assertRequestMatchesExpected(t *testing.T, benchAuthParam string, expectedAuthHeader []string) {
+	const rootURL = "http://127.0.0.1:8653"
+	const verb = "GET"
+	const path = "/test/path"
+	const delay = 0
+	const extra = ""
+	
 	requestEvent := RequestEvent{verb, path, benchAuthParam, delay, extra}
 	httpRequest := eventToRequest(rootURL, requestEvent)
 	assert.Equal(t, verb, httpRequest.Method, "Wrong HTTP method")
