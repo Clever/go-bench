@@ -37,7 +37,7 @@ item | required? | description
 time | yes | Time in ms after initialization to send request
 method | yes | HTTP method to use for request
 path | yes | Path for request
-auth | no | Basic authentication header value (unencoded)
+auth | no | Authentication header value (will be passed to server directly as given)
 extra | no | Information about the request that will be written to the output file
 
 If you need a simple server to test your usage of go-bench, you can start one using:

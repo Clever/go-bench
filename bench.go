@@ -3,7 +3,6 @@ package main
 import (
 	"bufio"
 	"bytes"
-	"encoding/base64"
 	"encoding/csv"
 	"encoding/json"
 	"flag"
@@ -21,7 +20,7 @@ import (
 type RequestEvent struct {
 	Verb  string
 	Path  string
-	User  string
+	Auth  string
 	Time  int
 	Extra string
 }
@@ -72,8 +71,8 @@ func eventToRequest(rootURL string, event RequestEvent) *http.Request {
 	if err != nil {
 		panic(err)
 	}
-	if event.User != "" {
-		req.Header.Set("Authorization", fmt.Sprintf("Basic %s", base64.StdEncoding.EncodeToString([]byte(event.User+":"))))
+	if event.Auth != "" {
+		req.Header.Set("Authorization", event.Auth)
 	}
 	return req
 }
