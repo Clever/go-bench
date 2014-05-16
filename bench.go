@@ -210,8 +210,10 @@ func main() {
 
 	parseAndReplay(os.Stdin, *rooturl, *speed)
 	fmt.Println("Done!\n")
-	outputWriter.Flush()
-	outputFile.Close()
+	if *output != "" {
+		outputWriter.Flush()
+		outputFile.Close()
+	}
 
 	for i := 1; i < 6; i++ {
 		if responseCodes[i] != 0 {
