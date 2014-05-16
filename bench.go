@@ -198,7 +198,7 @@ func main() {
 	flag.Parse()
 
 	if *rooturl == "" {
-		panic("rooturl parameter is required")
+		panic("root parameter is required")
 	}
 
 	if *output != "" {
@@ -214,7 +214,7 @@ func main() {
 
 	parseAndReplay(os.Stdin, *rooturl, *speed)
 	fmt.Println("Done!\n")
-	if *output != "" {
+	if outputWriter != nil {
 		outputWriter.Flush()
 		outputFile.Close()
 	}
