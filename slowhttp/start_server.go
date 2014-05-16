@@ -1,12 +1,11 @@
 package main
 
 import (
-	"github.com/Clever/go-bench/slowhttp"
 	"fmt"
 )
 
 func main() {
-	server, err := slowhttp.StartServer()
+	server, err := StartServer()
 	if (err != nil) {
 		panic(err)
 	}
@@ -19,5 +18,4 @@ func main() {
 		fmt.Println(err2)
 	}
 	fmt.Println("Exiting.")
-	server.Close()
 }

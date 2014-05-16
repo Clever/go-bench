@@ -1,4 +1,4 @@
-package slowhttp
+package main
 
 import (
 	"bufio"

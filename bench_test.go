@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/Clever/go-bench/slowhttp"
+	slowhttp "github.com/Clever/go-bench/slowhttp"
 	"os"
 	"testing"
 )
