@@ -15,6 +15,11 @@ You can run go-bench using:
 
 	go run bench.go
 
+Or:
+
+	go build bench.go
+	./bench
+
 The following command-line flags are supported:
 
 flag | required? | description
