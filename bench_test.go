@@ -38,14 +38,14 @@ func TestEventToRequestWithBearerAuthHeader(t *testing.T) {
 	assertRequestMatchesExpected(t, "Bearer YYYY", []string{"Bearer YYYY"})
 }
 
-func assertRequestMatchesExpected(t *testing.T, benchAuthParam string, expectedAuthHeader []string) {
+func assertRequestMatchesExpected(t *testing.T, authParam string, expectedAuthHeader []string) {
 	const rootURL = "http://127.0.0.1:8653"
 	const verb = "GET"
 	const path = "/test/path"
 	const delay = 0
 	const extra = ""
-	
-	requestEvent := RequestEvent{verb, path, benchAuthParam, delay, extra}
+
+	requestEvent := RequestEvent{verb, path, authParam, delay, extra}
 	httpRequest := eventToRequest(rootURL, requestEvent)
 	assert.Equal(t, verb, httpRequest.Method, "Wrong HTTP method")
 	host := strings.Replace(rootURL, "http://", "", -1)
