@@ -13,9 +13,8 @@ func main() {
 	
 	// continue running until user input given
 	var input string
-	_, err2 := fmt.Scanf("%s", &input)
-	if (err != nil) {
-		fmt.Println(err2)
+	if _, err := fmt.Scanf("%s", &input); err != nil {
+		panic(err)
 	}
 	fmt.Println("Exiting.")
 }
