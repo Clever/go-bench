@@ -197,6 +197,10 @@ func main() {
 	rooturl := flag.String("root", "", "URL root for requests")
 	flag.Parse()
 
+	if *rooturl == "" {
+		panic("root parameter is required")
+	}
+
 	if *output != "" {
 		var err error
 		outputFile, err = os.Create(*output)
@@ -210,8 +214,10 @@ func main() {
 
 	parseAndReplay(os.Stdin, *rooturl, *speed)
 	fmt.Println("Done!\n")
-	outputWriter.Flush()
-	outputFile.Close()
+	if outputWriter != nil {
+		outputWriter.Flush()
+		outputFile.Close()
+	}
 
 	for i := 1; i < 6; i++ {
 		if responseCodes[i] != 0 {
