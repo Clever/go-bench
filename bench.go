@@ -18,11 +18,11 @@ import (
 )
 
 type RequestEvent struct {
-	Verb  string
-	Path  string
-	Auth  string
-	Time  int
-	Extra string
+	Verb   string
+	Path   string
+	Auth   string
+	Offset time.Duration
+	Extra  string
 }
 
 type RequestEventReader struct {
@@ -41,11 +41,12 @@ func (r *RequestEventReader) Read() (event RequestEvent, err error) {
 		return RequestEvent{}, err
 	}
 
-	time, err := strconv.Atoi(line[0])
+	offset, err := strconv.Atoi(line[0])
 	if err != nil {
 		return RequestEvent{}, err
 	}
-	return RequestEvent{line[1], line[2], line[3], time, line[4]}, nil
+	offsetDuration := time.Duration(offset) * time.Millisecond
+	return RequestEvent{line[1], line[2], line[3], offsetDuration, line[4]}, nil
 }
 
 func createDialFunc(startTime time.Time, endTimeResult *int64) func(network, addr string) (net.Conn, error) {
@@ -116,8 +117,6 @@ var responseCodes [6]int
 var statsMutex sync.Mutex
 
 func addToStats(event RequestEvent, result RequestResult) {
-	// To be implemented
-
 	statsMutex.Lock()
 	if outputWriter != nil {
 		type ResultData struct {
@@ -161,12 +160,16 @@ func addToStats(event RequestEvent, result RequestResult) {
 	statsMutex.Unlock()
 }
 
-func parseAndReplay(r io.Reader, rootURL string, speed float64) {
-	var startTime time.Time
-	in := newRequestEventReader(r)
+func scaleDuration(t time.Duration, scale float64) time.Duration {
+	nanos := float64(t.Nanoseconds()) * scale
+	return time.Duration(nanos)
+}
 
-	var mutex sync.Mutex
-	count := 0
+func parseAndReplay(r io.Reader, rootURL string, speed float64) {
+	in := newRequestEventReader(r)
+	lastOffset := time.Duration(0)
+	tickChan := time.After(lastOffset)
+	var wg sync.WaitGroup
 	for {
 		rec, err := in.Read()
 		if err == io.EOF {
@@ -175,22 +178,20 @@ func parseAndReplay(r io.Reader, rootURL string, speed float64) {
 			panic(err)
 		}
 
-		if startTime.IsZero() {
-			startTime = time.Now()
+		select {
+		case <-tickChan:
+			waitTime := scaleDuration(rec.Offset-lastOffset, 1.0/speed)
+			lastOffset = rec.Offset
+			tickChan = time.After(waitTime)
+			wg.Add(1)
+			go func() {
+				addToStats(rec, timeRequest(eventToRequest(rootURL, rec)))
+				wg.Done()
+			}()
 		}
-
-		for int(float64(time.Now().Sub(startTime)/time.Millisecond)*speed) < rec.Time {
-			time.Sleep(time.Duration(100) * time.Millisecond)
-		}
-		mutex.Lock()
-		count++
-		mutex.Unlock()
-		go func() { addToStats(rec, timeRequest(eventToRequest(rootURL, rec))); mutex.Lock(); count--; mutex.Unlock() }()
 	}
 
-	for count > 0 {
-		time.Sleep(time.Duration(100) * time.Millisecond)
-	}
+	wg.Wait()
 }
 
 var outputWriter *bufio.Writer
