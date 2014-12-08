@@ -117,8 +117,6 @@ var responseCodes [6]int
 var statsMutex sync.Mutex
 
 func addToStats(event RequestEvent, result RequestResult) {
-	// To be implemented
-
 	statsMutex.Lock()
 	if outputWriter != nil {
 		type ResultData struct {
