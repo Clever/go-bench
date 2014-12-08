@@ -18,11 +18,11 @@ import (
 )
 
 type RequestEvent struct {
-	Verb  string
-	Path  string
-	Auth  string
-	Time  time.Duration
-	Extra string
+	Verb   string
+	Path   string
+	Auth   string
+	Offset time.Duration
+	Extra  string
 }
 
 type RequestEventReader struct {
@@ -169,8 +169,8 @@ func scaleDuration(t time.Duration, scale float64) time.Duration {
 
 func parseAndReplay(r io.Reader, rootURL string, speed float64) {
 	in := newRequestEventReader(r)
-	lastTime := time.Duration(0)
-	tickChan := time.After(lastTime)
+	lastOffset := time.Duration(0)
+	tickChan := time.After(lastOffset)
 	var wg sync.WaitGroup
 	for {
 		rec, err := in.Read()
@@ -182,8 +182,8 @@ func parseAndReplay(r io.Reader, rootURL string, speed float64) {
 
 		select {
 		case <-tickChan:
-			waitTime := scaleDuration(rec.Time-lastTime, speed)
-			lastTime = rec.Time
+			waitTime := scaleDuration(rec.Offset-lastOffset, speed)
+			lastOffset = rec.Offset
 			tickChan = time.After(waitTime)
 			wg.Add(1)
 			go func() {
