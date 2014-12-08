@@ -171,8 +171,7 @@ func parseAndReplay(r io.Reader, rootURL string, speed float64) {
 	in := newRequestEventReader(r)
 	lastTime := time.Duration(0)
 	tickChan := time.After(lastTime)
-	var mutex sync.Mutex
-	count := 0
+	var wg sync.WaitGroup
 	for {
 		rec, err := in.Read()
 		if err == io.EOF {
@@ -186,21 +185,15 @@ func parseAndReplay(r io.Reader, rootURL string, speed float64) {
 			waitTime := scaleDuration(rec.Time-lastTime, speed)
 			lastTime = rec.Time
 			tickChan = time.After(waitTime)
-			mutex.Lock()
-			count++
-			mutex.Unlock()
+			wg.Add(1)
 			go func() {
 				addToStats(rec, timeRequest(eventToRequest(rootURL, rec)))
-				mutex.Lock()
-				count--
-				mutex.Unlock()
+				wg.Done()
 			}()
 		}
 	}
 
-	for count > 0 {
-		time.Sleep(time.Duration(100) * time.Millisecond)
-	}
+	wg.Wait()
 }
 
 var outputWriter *bufio.Writer
