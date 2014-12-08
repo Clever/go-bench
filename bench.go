@@ -180,7 +180,7 @@ func parseAndReplay(r io.Reader, rootURL string, speed float64) {
 
 		select {
 		case <-tickChan:
-			waitTime := scaleDuration(rec.Offset-lastOffset, speed)
+			waitTime := scaleDuration(rec.Offset-lastOffset, 1.0/speed)
 			lastOffset = rec.Offset
 			tickChan = time.After(waitTime)
 			wg.Add(1)
