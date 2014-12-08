@@ -21,7 +21,7 @@ type RequestEvent struct {
 	Verb  string
 	Path  string
 	Auth  string
-	Time  int
+	Time  time.Duration
 	Extra string
 }
 
@@ -41,11 +41,12 @@ func (r *RequestEventReader) Read() (event RequestEvent, err error) {
 		return RequestEvent{}, err
 	}
 
-	time, err := strconv.Atoi(line[0])
+	offset, err := strconv.Atoi(line[0])
 	if err != nil {
 		return RequestEvent{}, err
 	}
-	return RequestEvent{line[1], line[2], line[3], time, line[4]}, nil
+	offsetDuration := time.Duration(offset) * time.Millisecond
+	return RequestEvent{line[1], line[2], line[3], offsetDuration, line[4]}, nil
 }
 
 func createDialFunc(startTime time.Time, endTimeResult *int64) func(network, addr string) (net.Conn, error) {
@@ -161,9 +162,15 @@ func addToStats(event RequestEvent, result RequestResult) {
 	statsMutex.Unlock()
 }
 
+func scaleDuration(t time.Duration, scale float64) time.Duration {
+	nanos := float64(t.Nanoseconds()) * scale
+	return time.Duration(nanos)
+}
+
 func parseAndReplay(r io.Reader, rootURL string, speed float64) {
 	in := newRequestEventReader(r)
-	tickChan := time.After(time.Duration(lastTime))
+	lastTime := time.Duration(0)
+	tickChan := time.After(lastTime)
 	var mutex sync.Mutex
 	count := 0
 	for {
@@ -176,7 +183,7 @@ func parseAndReplay(r io.Reader, rootURL string, speed float64) {
 
 		select {
 		case <-tickChan:
-			waitTime := time.Duration(int(float64(rec.Time-lastTime)*speed)) * time.Millisecond
+			waitTime := scaleDuration(rec.Time-lastTime, speed)
 			lastTime = rec.Time
 			tickChan = time.After(waitTime)
 			mutex.Lock()
