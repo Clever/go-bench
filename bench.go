@@ -162,9 +162,8 @@ func addToStats(event RequestEvent, result RequestResult) {
 }
 
 func parseAndReplay(r io.Reader, rootURL string, speed float64) {
-	var startTime time.Time
 	in := newRequestEventReader(r)
-
+	tickChan := time.After(time.Duration(lastTime))
 	var mutex sync.Mutex
 	count := 0
 	for {
@@ -175,17 +174,21 @@ func parseAndReplay(r io.Reader, rootURL string, speed float64) {
 			panic(err)
 		}
 
-		if startTime.IsZero() {
-			startTime = time.Now()
+		select {
+		case <-tickChan:
+			waitTime := time.Duration(int(float64(rec.Time-lastTime)*speed)) * time.Millisecond
+			lastTime = rec.Time
+			tickChan = time.After(waitTime)
+			mutex.Lock()
+			count++
+			mutex.Unlock()
+			go func() {
+				addToStats(rec, timeRequest(eventToRequest(rootURL, rec)))
+				mutex.Lock()
+				count--
+				mutex.Unlock()
+			}()
 		}
-
-		for int(float64(time.Now().Sub(startTime)/time.Millisecond)*speed) < rec.Time {
-			time.Sleep(time.Duration(100) * time.Millisecond)
-		}
-		mutex.Lock()
-		count++
-		mutex.Unlock()
-		go func() { addToStats(rec, timeRequest(eventToRequest(rootURL, rec))); mutex.Lock(); count--; mutex.Unlock() }()
 	}
 
 	for count > 0 {
