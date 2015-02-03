@@ -2,12 +2,12 @@ package main
 
 import (
 	"bufio"
-	"bytes"
 	"encoding/csv"
 	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"log"
 	"net"
 	"net/http"
@@ -16,6 +16,11 @@ import (
 	"sync"
 	"time"
 )
+
+type bodyResultData struct {
+	RequestEvent
+	Body interface{}
+}
 
 type RequestEvent struct {
 	Verb  string
@@ -77,7 +82,7 @@ func eventToRequest(rootURL string, event RequestEvent) *http.Request {
 	return req
 }
 
-func timeRequest(request *http.Request) RequestResult {
+func timeRequest(request *http.Request) (RequestResult, []byte) {
 	var connectEndTime, headersEndTime, contentEndTime int64
 	startTime := time.Now()
 
@@ -92,15 +97,14 @@ func timeRequest(request *http.Request) RequestResult {
 	if err != nil {
 		log.Fatalf("request err %#v: %s", request, err)
 	}
-	var contentSize int64 = 0
 	defer r.Body.Close()
-	if err == nil {
-		buf := new(bytes.Buffer)
-		contentSize, _ = io.Copy(buf, r.Body)
-		contentEndTime = time.Now().Sub(startTime).Nanoseconds()
+	body, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		log.Println("WARNING: Error while reading response body. %s", err.Error())
 	}
-	return RequestResult{err, r.StatusCode, contentSize, (connectEndTime) / 1000000,
-		(headersEndTime - connectEndTime) / 1000000, (contentEndTime - headersEndTime) / 1000000}
+	contentEndTime = time.Now().Sub(startTime).Nanoseconds()
+	return RequestResult{err, r.StatusCode, int64(len(body)), (connectEndTime) / 1000000,
+		(headersEndTime - connectEndTime) / 1000000, (contentEndTime - headersEndTime) / 1000000}, body
 
 }
 
@@ -115,7 +119,7 @@ func colorPrint(color int, str string) {
 var responseCodes [6]int
 var statsMutex sync.Mutex
 
-func addToStats(event RequestEvent, result RequestResult) {
+func addToStats(event RequestEvent, result RequestResult, body []byte, bw io.Writer) {
 	// To be implemented
 
 	statsMutex.Lock()
@@ -135,6 +139,18 @@ func addToStats(event RequestEvent, result RequestResult) {
 		outputWriter.WriteRune('\n')
 		outputWriter.Flush()
 	}
+	// Write the body data asynchronously.
+	go func() {
+		var bodymap interface{}
+		if err := json.Unmarshal(body, &bodymap); err != nil {
+			bodymap = string(body)
+		}
+		bodydata, err := json.Marshal(bodyResultData{event, bodymap})
+		if err != nil {
+			log.Println("WARNING: Error marshaling body result data. %s", err.Error())
+		}
+		bw.Write(append(bodydata, byte('\n')))
+	}()
 
 	if result.ResponseCode/100 < 6 {
 		responseCodes[result.ResponseCode/100]++
@@ -161,7 +177,7 @@ func addToStats(event RequestEvent, result RequestResult) {
 	statsMutex.Unlock()
 }
 
-func parseAndReplay(r io.Reader, rootURL string, speed float64) {
+func parseAndReplay(r io.Reader, rootURL string, speed float64, bw io.Writer) {
 	var startTime time.Time
 	in := newRequestEventReader(r)
 
@@ -185,7 +201,13 @@ func parseAndReplay(r io.Reader, rootURL string, speed float64) {
 		mutex.Lock()
 		count++
 		mutex.Unlock()
-		go func() { addToStats(rec, timeRequest(eventToRequest(rootURL, rec))); mutex.Lock(); count--; mutex.Unlock() }()
+		go func() {
+			res, body := timeRequest(eventToRequest(rootURL, rec))
+			addToStats(rec, res, body, bw)
+			mutex.Lock()
+			count--
+			mutex.Unlock()
+		}()
 	}
 
 	for count > 0 {
@@ -200,6 +222,7 @@ func main() {
 	speed := flag.Float64("speed", 1, "Sets multiplier for playback speed.")
 	output := flag.String("output", "", "Output file for results, in json format.")
 	rooturl := flag.String("root", "", "URL root for requests")
+	bodyoutput := flag.String("bodyoutput", "", "Output file for response bodies. Does not store body if empty.")
 	flag.Parse()
 
 	if *rooturl == "" {
@@ -217,7 +240,20 @@ func main() {
 
 	fmt.Println("Starting playback...")
 
-	parseAndReplay(os.Stdin, *rooturl, *speed)
+	var bodyWriter io.Writer
+
+	if len(*bodyoutput) == 0 {
+		bodyWriter = ioutil.Discard
+	} else {
+		f, err := os.Create(*bodyoutput)
+		if err != nil {
+			log.Fatal(err)
+		}
+		defer f.Close()
+		bodyWriter = f
+	}
+
+	parseAndReplay(os.Stdin, *rooturl, *speed, bodyWriter)
 	fmt.Println("Done!\n")
 	if outputWriter != nil {
 		outputWriter.Flush()

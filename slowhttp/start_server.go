@@ -1,4 +1,4 @@
-package main
+package slowhttp
 
 import (
 	"fmt"
@@ -6,11 +6,11 @@ import (
 
 func main() {
 	server, err := StartServer()
-	if (err != nil) {
+	if err != nil {
 		panic(err)
 	}
 	defer server.Close()
-	
+
 	// continue running until user input given
 	var input string
 	if _, err := fmt.Scanf("%s", &input); err != nil {

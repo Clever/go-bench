@@ -1,11 +1,13 @@
 package main
 
 import (
-	slowhttp "github.com/Clever/go-bench/slowhttp"
+	"io/ioutil"
 	"os"
-	"github.com/stretchr/testify/assert"
-	"testing"
 	"strings"
+	"testing"
+
+	slowhttp "github.com/clever/go-bench/slowhttp"
+	"github.com/stretchr/testify/assert"
 )
 
 func assertNoError(err error, t *testing.T) {
@@ -22,7 +24,7 @@ func TestPlayback_1(t *testing.T) {
 	l, err := slowhttp.StartServer()
 	assertNoError(err, t)
 
-	parseAndReplay(p, "http://127.0.0.1:8653", 1)
+	parseAndReplay(p, "http://127.0.0.1:8653", 1, ioutil.Discard)
 	l.Close()
 }
 
