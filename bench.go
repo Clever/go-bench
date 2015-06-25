@@ -194,7 +194,7 @@ func parseAndReplay(r io.Reader, rootURL string, speed float64, bw io.Writer) {
 		}
 
 		for int(float64(time.Now().Sub(startTime)/time.Millisecond)*speed) < rec.Time {
-			time.Sleep(time.Duration(100) * time.Millisecond)
+			time.Sleep(time.Duration(1) * time.Millisecond)
 		}
 		go func() {
 			res, body := timeRequest(eventToRequest(rootURL, rec))
