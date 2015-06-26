@@ -181,8 +181,6 @@ func parseAndReplay(r io.Reader, rootURL string, speed float64, bw io.Writer) {
 	var startTime time.Time
 	in := newRequestEventReader(r)
 
-	var mutex sync.Mutex
-	count := 0
 	for {
 		rec, err := in.Read()
 		if err == io.EOF {
@@ -196,23 +194,17 @@ func parseAndReplay(r io.Reader, rootURL string, speed float64, bw io.Writer) {
 		}
 
 		for int(float64(time.Now().Sub(startTime)/time.Millisecond)*speed) < rec.Time {
-			time.Sleep(time.Duration(100) * time.Millisecond)
+			time.Sleep(time.Duration(1) * time.Millisecond)
 		}
-		mutex.Lock()
-		count++
-		mutex.Unlock()
 		go func() {
 			res, body := timeRequest(eventToRequest(rootURL, rec))
 			addToStats(rec, res, body, bw)
-			mutex.Lock()
-			count--
-			mutex.Unlock()
 		}()
 	}
 
-	for count > 0 {
-		time.Sleep(time.Duration(100) * time.Millisecond)
-	}
+	// Sleep for a bit to wait for the last few requests to finish. This is a bit ad-hoc,
+	// but is good enough for now.
+	time.Sleep(time.Duration(100) * time.Millisecond)
 }
 
 var outputWriter *bufio.Writer
