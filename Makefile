@@ -5,6 +5,13 @@ PKGS = $(PKG) $(SUBPKGS)
 
 .PHONY: test $(PKGS)
 
+GOVERSION := $(shell go version | grep 1.5)
+ifeq "$(GOVERSION)" ""
+  $(error must be running Go version 1.5)
+endif
+
+export GO15VENDOREXPERIMENT = 1
+
 test: $(PKG)
 
 $(PKG):
