@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	slowhttp "github.com/clever/go-bench/slowhttp"
+	slowhttp "github.com/Clever/go-bench/slowhttp"
 	"github.com/stretchr/testify/assert"
 )
 
