@@ -1,7 +1,6 @@
 SHELL := /bin/bash
 PKG = github.com/Clever/go-bench
-SUBPKGS = slowhttp
-PKGS = $(PKG) $(SUBPKGS)
+PKGS := $(shell go list ./... | grep -v /vendor)
 
 .PHONY: test $(PKGS)
 
@@ -27,8 +26,6 @@ else
 endif
 
 
-SHELL := /bin/bash
-PKGS := $(shell go list ./... | grep -v /vendor)
 GODEP := $(GOPATH)/bin/godep
 
 $(GODEP):
