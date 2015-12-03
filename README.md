@@ -43,3 +43,7 @@ extra | no | Information about the request that will be written to the output fi
 If you need a simple server to test your usage of go-bench, you can start one using:
 
 	go run start_server.go
+
+## Vendoring
+
+Please view the [dev-handbook for instructions](https://github.com/Clever/dev-handbook/blob/master/golang/godep.md).
