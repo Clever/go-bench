@@ -105,7 +105,6 @@ func StartServer() (net.Listener, error) {
 	fmt.Println("Starting server!")
 	if err != nil {
 		panic(err)
-		return listener, err
 	}
 	go acceptLoop(listener)
 	return listener, nil

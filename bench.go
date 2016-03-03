@@ -100,7 +100,7 @@ func timeRequest(request *http.Request) (RequestResult, []byte) {
 	defer r.Body.Close()
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
-		log.Println("WARNING: Error while reading response body. %s", err.Error())
+		log.Println("WARNING: Error while reading response body.", err.Error())
 	}
 	contentEndTime = time.Now().Sub(startTime).Nanoseconds()
 	return RequestResult{err, r.StatusCode, int64(len(body)), (connectEndTime) / 1000000,
@@ -147,7 +147,7 @@ func addToStats(event RequestEvent, result RequestResult, body []byte, bw io.Wri
 		}
 		bodydata, err := json.Marshal(bodyResultData{event, bodymap})
 		if err != nil {
-			log.Println("WARNING: Error marshaling body result data. %s", err.Error())
+			log.Println("WARNING: Error marshaling body result data.", err.Error())
 		}
 		bw.Write(append(bodydata, byte('\n')))
 	}()
@@ -160,7 +160,7 @@ func addToStats(event RequestEvent, result RequestResult, body []byte, bw io.Wri
 
 	requestLine := fmt.Sprintf("%s %s [%s]\n", event.Verb, event.Path, event.Extra)
 	if result.Error != nil {
-		colorPrint(8, fmt.Sprintln("%sGot error:", requestLine, result.Error))
+		colorPrint(8, fmt.Sprintf("%sGot error: %s\n", requestLine, result.Error))
 	} else {
 		resultLine := fmt.Sprintf("%sGot %d (%d bytes) in %d ms, %d ms, %d ms (%d ms)\n",
 			requestLine, result.ResponseCode, result.ContentSize, result.ConnectTime,
@@ -246,7 +246,7 @@ func main() {
 	}
 
 	parseAndReplay(os.Stdin, *rooturl, *speed, bodyWriter)
-	fmt.Println("Done!\n")
+	fmt.Println("Done!")
 	if outputWriter != nil {
 		outputWriter.Flush()
 		outputFile.Close()
