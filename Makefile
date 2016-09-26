@@ -7,7 +7,7 @@ PKGS := $(shell go list ./... | grep -v /vendor)
 EXECUTABLE := $(shell basename $(PKG))
 .PHONY: test vendor $(PKGS)
 
-$(eval $(call golang-version-check,1.6))
+$(eval $(call golang-version-check,1.7))
 
 all: test build
 
