@@ -2,12 +2,6 @@
 
 
 [[projects]]
-  branch = "master"
-  name = "github.com/Clever/go-bench"
-  packages = ["slowhttp"]
-  revision = "9cb335d9ac93684278e05829d5474f7c83d6f229"
-
-[[projects]]
   name = "github.com/stretchr/testify"
   packages = ["assert"]
   revision = "2160c81a963bc827f650a9d420263d05d35bb97e"
@@ -15,6 +9,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "8fcdaa2c7c4416f0625ffc8cb33593fff7b85df365cbdd9690f861e926f1b05a"
+  inputs-digest = "c940d1337f45f8152f2f5a9070e0260267261b8089ca6aeab1020e71dfb4253d"
   solver-name = "gps-cdcl"
   solver-version = 1
